@@ -3,7 +3,6 @@ use serde::Deserialize;
 use std::{net::SocketAddr, fmt::format};
 use tower_http::cors::{Any, CorsLayer};
 
-mod custom_error;
 
 
 #[tokio::main]
