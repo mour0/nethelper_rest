@@ -1,31 +1,25 @@
-use axum::{routing::get, Router, extract::Query, response::Html, http::StatusCode};
+use axum::{routing::get, Router, extract::Query, http::StatusCode};
+use sanitize_html::{rules::predefined::DEFAULT, sanitize_str};
 use serde::Deserialize;
-use std::{net::SocketAddr, fmt::format};
+use std::{net::SocketAddr, time::Duration};
 use tower_http::cors::{Any, CorsLayer};
 
 
-
+const MAX_AGE: u64 = 86400;
 #[tokio::main]
 async fn main() {
-    let cors = CorsLayer::new().allow_origin(Any);
-    // Route all requests on "/" endpoint to anonymous handler.
-    //
-    // A handler is an async function which returns something that implements
-    // `axum::response::IntoResponse`.
-
-    // A closure or a function can be used as handler.
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .max_age(Duration::from_secs(MAX_AGE));
 
     let app = Router::new()
-        .route("/", get(handler_ipv4))
+        .route("/ipv4", get(handler_ipv4))
         .layer(cors);
-    //        Router::new().route("/", get(|| async { "Hello, world!" }));
 
     // Address that server will bind to.
     let addr = SocketAddr::from(([127, 0, 0, 1], 3001));
 
-    // Use `hyper::server::Server` which is re-exported through `axum::Server` to serve the app.
     axum::Server::bind(&addr)
-        // Hyper server takes a make service.
         .serve(app.into_make_service())
         .await
         .unwrap();
@@ -41,19 +35,48 @@ struct NetworkData {
 }
 
 
-// Maybe update to Regex
-fn validate_ipv4(s: &str) -> bool
-{
-    s.chars().all(|c| c.is_ascii_digit() || c == '.' || c =='/')
-}
+//fn validate_ipv4(s: &str) -> bool
+//{
+//    s.chars().all(|c| c.is_ascii_digit() || c == '.' || c =='/')
+//}
 
 async fn handler_ipv4(Query(data): Query<NetworkData>) -> Result<String,StatusCode> {
-    // TODO sanitize input
-    if !validate_ipv4(&data.n) { return Err(StatusCode::BAD_REQUEST)}
-    if !validate_ipv4(&data.r) { return Err(StatusCode::BAD_REQUEST)}
-    if !validate_ipv4(&data.h0) { return Err(StatusCode::BAD_REQUEST)}
-    if !validate_ipv4(&data.h1) { return Err(StatusCode::BAD_REQUEST)}
-    if !validate_ipv4(&data.br) { return Err(StatusCode::BAD_REQUEST)}
+
+    //if !validate_ipv4(&data.n) { return Err(StatusCode::BAD_REQUEST)}
+    //if !validate_ipv4(&data.r) { return Err(StatusCode::BAD_REQUEST)}
+    //if !validate_ipv4(&data.h0) { return Err(StatusCode::BAD_REQUEST)}
+    //if !validate_ipv4(&data.h1) { return Err(StatusCode::BAD_REQUEST)}
+    //if !validate_ipv4(&data.br) { return Err(StatusCode::BAD_REQUEST)}
+
+    //let network = sanitize_str(&DEFAULT, &data.n).map_err(|_| StatusCode::BAD_REQUEST)?;
+    let network_addr = match sanitize_str(&DEFAULT, &data.n) {
+        Ok(res) => res,
+        Err(_) => return Err(StatusCode::BAD_REQUEST),
+    };
+
+    let router_addr = match sanitize_str(&DEFAULT, &data.r) {
+        Ok(res) => res,
+        Err(_) => return Err(StatusCode::BAD_REQUEST),
+    };
+
+    let h0_addr = match sanitize_str(&DEFAULT, &data.h0) {
+        Ok(res) => res,
+        Err(_) => return Err(StatusCode::BAD_REQUEST),
+    };
+
+    let h1_addr = match sanitize_str(&DEFAULT, &data.h1) {
+        Ok(res) => res,
+        Err(_) => return Err(StatusCode::BAD_REQUEST),
+    };
+
+    let broadcast_addr = match sanitize_str(&DEFAULT, &data.br) {
+        Ok(res) => res,
+        Err(_) => return Err(StatusCode::BAD_REQUEST),
+    };
+
+
+
+
 
     let formatted_template = format!("
     <svg viewBox=\"0 0 174 174\" xmlns=\"http://www.w3.org/2000/svg\" xml:space=\"preserve\" style=\"fill-rule:evenodd;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5\">
@@ -76,11 +99,11 @@ async fn handler_ipv4(Query(data): Query<NetworkData>) -> Result<String,StatusCo
     <path d=\"M200 110V96m-32 53c.889-21.778-1.322-30.48 16-29\" style=\"fill:none;stroke:#000;stroke-width:1px\" transform=\"translate(-113 -32.84)\"/>
     <path d=\"M168 149c.889-21.778-1.322-30.48 16-29\" style=\"fill:none;stroke:#000;stroke-width:1px\" transform=\"matrix(-1 0 0 1 287 -32.84)\"/>
     </svg>",
-        NET = data.n,
-        BR = data.br,
-        ROUTER = data.r,
-        HOST0 = data.h0,
-        HOST1 = data.h1,
+        NET = network_addr,
+        BR = broadcast_addr,
+        ROUTER = router_addr,
+        HOST0 = h0_addr,
+        HOST1 = h1_addr,
     );
 
     Ok(formatted_template)

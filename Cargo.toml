@@ -1,5 +1,6 @@
 [package]
-name = "rest_nethelper"
+name = "nethelper_rest"
+authors = ["mour0 <malentacchimaurizio19@gmail.com>"]
 version = "0.1.0"
 edition = "2021"
 
@@ -10,3 +11,4 @@ axum = "0.6.12"
 tokio = { version = "1.27.0", features = ["full"] }
 serde = { version = "1.0.159", features = ["derive"] }
 tower-http = { version = "0.4.0", features = ["cors"] }
+sanitize_html = "0.7.0"
