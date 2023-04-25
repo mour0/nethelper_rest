@@ -1,19 +1,39 @@
-use axum::{routing::get, Router, extract::Query, http::StatusCode};
+use axum::{routing::get, Router, extract::{Query, Path}, http::{StatusCode, Extensions}, Extension, Json};
 use sanitize_html::{rules::predefined::DEFAULT, sanitize_str};
 use serde::Deserialize;
 use std::{net::SocketAddr, time::Duration};
 use tower_http::cors::{Any, CorsLayer};
 
+use sqlx::{SqlitePool, sqlite::{SqliteConnectOptions, self}, Row, Executor};
+
+
 
 const MAX_AGE: u64 = 86400;
 #[tokio::main]
 async fn main() {
+    // -- Database --
+    let pool = SqlitePool::connect_with(
+        SqliteConnectOptions::new()
+            .filename(std::path::Path::new("history.db"))
+            .create_if_missing(true)
+    ).await.expect("Failed to connect to db");
+
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT NOT NULL,
+            last_input TEXT NOT NULL,
+        )",
+    )
+    .execute(&pool).await.expect("Failed to execute Query");
+
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .max_age(Duration::from_secs(MAX_AGE));
 
     let app = Router::new()
         .route("/ipv4", get(handler_ipv4))
+        .route("/history", get(handler_history).layer(Extension(pool)))
         .layer(cors);
 
     // Address that server will bind to.
@@ -25,22 +45,52 @@ async fn main() {
         .unwrap();
 }
 
+#[derive(sqlx::FromRow)]
+struct History {
+    last_input: String,
+}
+
+async fn handler_history(Query(email): Query<HistoryQuery>, db_pool: Extension<SqlitePool>) -> Result<Json<String>, StatusCode>
+{
+    let mut conn = db_pool.acquire().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let history_entries = sqlx::query_as::<_, History>(
+        "SELECT last_input FROM history WHERE email = ?"
+    )
+    .bind(email.email)
+    .fetch_one(&mut conn)
+    .await;
+
+    match history_entries {
+        Ok(h) => {
+            let json = format!("{}", h.last_input);
+            return Ok(Json(json));
+        },
+        Err(_) => { return Err(StatusCode::NOT_FOUND); },
+    }
+}
+
 #[derive(Deserialize)]
-struct NetworkData {
+struct HistoryQuery {
+    email: String,
+}
+
+#[derive(Deserialize)]
+struct NetworkQuery {
     n: String, // Network
     r: String, // Router
     h0: String, // Host 0
     h1: String, // Host 1
     br: String, // Broadcast
+    email: Option<String>,
 }
-
 
 //fn validate_ipv4(s: &str) -> bool
 //{
 //    s.chars().all(|c| c.is_ascii_digit() || c == '.' || c =='/')
 //}
 
-async fn handler_ipv4(Query(data): Query<NetworkData>) -> Result<String,StatusCode> {
+async fn handler_ipv4(Query(data): Query<NetworkQuery>, db_pool: Extension<SqlitePool>) -> Result<String,StatusCode> {
 
     //if !validate_ipv4(&data.n) { return Err(StatusCode::BAD_REQUEST)}
     //if !validate_ipv4(&data.r) { return Err(StatusCode::BAD_REQUEST)}
@@ -105,6 +155,31 @@ async fn handler_ipv4(Query(data): Query<NetworkData>) -> Result<String,StatusCo
         HOST0 = h0_addr,
         HOST1 = h1_addr,
     );
+
+    if data.email.is_some()
+    {
+        let mut conn = db_pool.acquire().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        let history_entries = sqlx::query_as::<_, History>(
+            "INSERT OR IGNORE INTO history (email, last_input) VALUES (?, ?) UPDATE history SET last_input = ? WHERE email = ?"
+        )
+        .bind(&data.email)
+        .bind(&formatted_template)
+        .bind(&formatted_template)
+        .bind(&data.email)
+        .fetch_one(&mut conn)
+        .await;
+        
+        match history_entries {
+            Ok(h) => {
+                println!("INSERT/UPDATE OK")
+            },
+            Err(_) => {
+                println!("INSERT/UPDATE OK")
+            },
+        }
+
+    }
 
     Ok(formatted_template)
 }
