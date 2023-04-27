@@ -1,10 +1,10 @@
-use axum::{routing::get, Router, extract::{Query, Path}, http::{StatusCode, Extensions}, Extension, Json};
+use axum::{routing::get, Router, extract::Query, http::StatusCode, Extension};
 use sanitize_html::{rules::predefined::DEFAULT, sanitize_str};
 use serde::Deserialize;
 use std::{net::SocketAddr, time::Duration};
 use tower_http::cors::{Any, CorsLayer};
 
-use sqlx::{SqlitePool, sqlite::{SqliteConnectOptions, self}, Row, Executor};
+use sqlx::{SqlitePool, sqlite::SqliteConnectOptions};
 
 
 
@@ -38,7 +38,6 @@ async fn main() {
         .layer(Extension(pool))
         .layer(cors);
 
-    // Address that server will bind to.
     let addr = SocketAddr::from(([127, 0, 0, 1], 3001));
 
     axum::Server::bind(&addr)
@@ -69,11 +68,14 @@ async fn handler_history(Query(email): Query<HistoryQuery>, db_pool: Extension<S
 
     match history_entries {
         Ok(h) => {
-            println!("[?] last_input: {}", h.last_input);
+            //println!("[?] last_input: {}", h.last_input);
             let saved = format!("{}", h.last_input);
             return Ok(saved);
         },
-        Err(_) => { return Err(StatusCode::NOT_FOUND); },
+        Err(_) => { 
+            //println!("[?] Err last_input");
+            return Err(StatusCode::NO_CONTENT); 
+        },
     }
 }
 
@@ -97,7 +99,7 @@ struct NetworkQuery {
 //    s.chars().all(|c| c.is_ascii_digit() || c == '.' || c =='/')
 //}
 
-async fn handler_ipv4(Query(data): Query<NetworkQuery>, db_pool: Extension<SqlitePool>) -> Result<String,StatusCode> {
+async fn handler_ipv4(Query(data): Query<NetworkQuery>) -> Result<String,StatusCode> {
 
     println!("[+] SVG handler");
     //if !validate_ipv4(&data.n) { return Err(StatusCode::BAD_REQUEST)}
