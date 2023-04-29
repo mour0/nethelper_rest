@@ -4,8 +4,8 @@ nethelper_rest is a simple REST API that mainly generates and returns an SVG of 
 While there is still room for improvement, such as adding a list of allowed origins for better security, I have chosen to keep it as simple and functional as possible.  
 This project is not meant to be used in a production environment, but rather as a proof of concept.  
 ## Endpoints
-`/ipv4`: Generates and returns the SVG of a network
-`/history`: Returns the saved SVG
+`/ipv4`: Generates and returns the SVG of a network  
+`/history`: Returns the saved SVG  
 `/save`: Requests to save a generated SVG  
 ## Example usage
 Here is an example query for the `/ipv4` endpoint:
