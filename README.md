@@ -15,6 +15,10 @@ To use nethelper_rest, you will need to download [SQLite](https://www.sqlite.org
 1. Clone the repository and navigate to the root directory
 2. Run `cargo b -r` to build the application
 3. Navigate go `.\target\release\`
-4. Run `./nethelper_rest.exe` to start the server.
-5. The sever will create an SQLite database named `history.db` in the same directory where the program is located.
+4. Run `./nethelper_rest.exe` to start the server
+5. The sever will create an SQLite database named `history.db` in the same directory where the program is located
+
+## Limitations
+1. The file `src/main.rs` contains a hardcoded URL, which means it was designed to be used on localhost only. If you plan on hosting this project on a server, you'll need to change `SocketAddr::from(([127, 0, 0, 1], 3001))` to `SocketAddr::from(([0, 0, 0, 0], 3001))` in `main.rs`. You may also want to consider changing the port.
+2. As this project is intended to be a proof of concept, all requests must be made using the `http` protocol. If you try to access the website using `https`, you may encounter a `Mixed Content` error. A temporary workaround for this issue is to enable `Insecure Content` for that page only.
 
